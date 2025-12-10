@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBM Quantum Job Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        quantum: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .status-badge {
+            @apply px-2 py-1 rounded-full text-xs font-semibold;
+        }
+        .status-running { @apply bg-yellow-100 text-yellow-800; }
+        .status-completed { @apply bg-green-100 text-green-800; }
+        .status-failed { @apply bg-red-100 text-red-800; }
+        .status-pending { @apply bg-blue-100 text-blue-800; }
+        
+        .priority-high { @apply bg-red-100 text-red-800; }
+        .priority-medium { @apply bg-yellow-100 text-yellow-800; }
+        .priority-low { @apply bg-green-100 text-green-800; }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .job-detail-panel {
+            transition: all 0.3s ease;
+            transform: translateX(100%);
+        }
+        
+        .job-detail-panel.active {
+            transform: translateX(0);
+        }
+        
+        .notification-toast {
+            transition: all 0.3s ease;
+            transform: translateY(-100px);
+            opacity: 0;
+        }
+        
+        .notification-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div id="app" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-10 h-10 bg-quantum-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                                Q
+                            </div>
+                        </div>
+                        <div class="ml-3">
+                            <h1 class="text-xl font-bold">IBM Quantum Job Dashboard</h1>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Real-time job monitoring & analytics</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <i class="fas fa-moon dark:hidden"></i>
+                            <i class="fas fa-sun hidden dark:block"></i>
+                        </button>
+                        
+                        <div class="relative">
+                            <button class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-bell"></i>
+                                <span class="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">3</span>
+                            </button>
+                        </div>
+                        
+                        <div class="relative">
+                            <button class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <div class="w-8 h-8 bg-quantum-600 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <span class="hidden md:block">Admin User</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <!-- Overview Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                            <i class="fas fa-tasks text-blue-600 dark:text-blue-400"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Jobs</p>
+                            <h3 class="text-2xl font-bold">1,247</h3>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-green-600 text-sm font-medium">
+                            <i class="fas fa-arrow-up"></i> 12.5%
+                        </span>
+                        <span class="text-gray-500 text-sm ml-2">from last week</span>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
+                            <i class="fas fa-check-circle text-green-600 dark:text-green-400"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
+                            <h3 class="text-2xl font-bold">894</h3>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-sm text-gray-500">Success rate: 89%</span>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-lg bg-red-100 dark:bg-red-900/30">
+                            <i class="fas fa-exclamation-triangle text-red-600 dark:text-red-400"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Failed</p>
+                            <h3 class="text-2xl font-bold">87</h3>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-sm text-gray-500">Failure rate: 8.7%</span>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
+                            <i class="fas fa-clock text-yellow-600 dark:text-yellow-400"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Avg. Time</p>
+                            <h3 class="text-2xl font-bold">2.4m</h3>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-green-600 text-sm font-medium">
+                            <i class="fas fa-arrow-down"></i> 0.8m
+                        </span>
+                        <span class="text-gray-500 text-sm ml-2">from last week</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold mb-4">Jobs by Status</h3>
+                    <div class="chart-container">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold mb-4">Jobs Over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Job Table and Filters -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-8">
+                <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <h3 class="text-lg font-semibold">Job Queue</h3>
+                        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mt-4 md:mt-0">
+                            <div class="relative">
+                                <input type="text" placeholder="Search jobs..." class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-quantum-500">
+                                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                            </div>
+                            <select class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-quantum-500">
+                                <option>All Status</option>
+                                <option>Running</option>
+                                <option>Completed</option>
+                                <option>Failed</option>
+                                <option>Pending</option>
+                            </select>
+                            <button class="px-4 py-2 bg-quantum-600 hover:bg-quantum-700 text-white rounded-lg transition-colors">
+                                <i class="fas fa-filter mr-2"></i>Filter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Job ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Submitted By</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Start Time</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Duration</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Priority</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onclick="showJobDetail('job-001')">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-quantum-600">QJ-001</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">Quantum Circuit</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge status-completed">Completed</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">john.doe@ibm.com</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">2023-12-01 14:30</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">2m 15s</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge priority-medium">Medium</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <button class="text-quantum-600 hover:text-quantum-800">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onclick="showJobDetail('job-002')">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-quantum-600">QJ-002</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">Quantum Algorithm</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge status-running">Running</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">jane.smith@ibm.com</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">2023-12-01 15:45</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">1m 30s</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge priority-high">High</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <button class="text-quantum-600 hover:text-quantum-800">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onclick="showJobDetail('job-003')">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-quantum-600">QJ-003</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">Quantum Simulation</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge status-pending">Pending</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">alice.johnson@ibm.com</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">-</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">-</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge priority-low">Low</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <button class="text-quantum-600 hover:text-quantum-800">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onclick="showJobDetail('job-004')">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-quantum-600">QJ-004</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">Circuit Optimization</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge status-failed">Failed</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">bob.wilson@ibm.com</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">2023-12-01 13:20</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm">0m 45s</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge priority-medium">Medium</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <button class="text-quantum-600 hover:text-quantum-800">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
+                    <div class="flex flex-col md:flex-row items-center justify-between">
+                        <div class="text-sm text-gray-700 dark:text-gray-300">
+                            Showing <span class="font-medium">1</span> to <span class="font-medium">4</span> of <span class="font-medium">1247</span> results
+                        </div>
+                        <div class="flex space-x-2 mt-4 md:mt-0">
+                            <button class="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+                                Previous
+                            </button>
+                            <button class="px-3 py-1 rounded-lg bg-quantum-600 text-white text-sm">
+                                1
+                            </button>
+                            <button class="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+                                2
+                            </button>
+                            <button class="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+                                3
+                            </button>
+                            <button class="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export and Actions Section -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+                <h3 class="text-lg font-semibold mb-4">Export & Reports</h3>
+                <div class="flex flex-wrap gap-4">
+                    <button class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-file-excel mr-2"></i>Export as Excel
+                    </button>
+                    <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-file-pdf mr-2"></i>Export as PDF
+                    </button>
+                    <button class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-file-csv mr-2"></i>Export as CSV
+                    </button>
+                    <button class="px-4 py-2 bg-quantum-600 hover:bg-quantum-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-calendar mr-2"></i>Schedule Report
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Job Detail Panel -->
+        <div id="job-detail-panel" class="job-detail-panel fixed top-0 right-0 h-full w-full lg:w-1/3 bg-white dark:bg-gray-800 shadow-xl z-50 p-6 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold">Job Details</h2>
+                <button onclick="hideJobDetail()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div id="job-detail-content">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="notification-toast" class="notification-toast fixed top-4 right-4 bg-white dark:bg-gray-800 shadow-lg rounded-lg p-4 max-w-sm z-50">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-bell text-yellow-500 text-xl"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium">New Job Completed</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Job QJ-001 has been successfully completed.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        });
+
+        // Initialize theme
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Charts
+        const statusChart = new Chart(
+            document.getElementById('statusChart'),
+            {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completed', 'Running', 'Pending', 'Failed'],
+                    datasets: [{
+                        data: [894, 153, 113, 87],
+                        backgroundColor: [
+                            '#10b981',
+                            '#f59e0b',
+                            '#3b82f6',
+                            '#ef4444'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#fff' : '#000'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+        const timelineChart = new Chart(
+            document.getElementById('timelineChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Completed Jobs',
+                        data: [120, 150, 180, 90, 210, 30, 15],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'New Jobs',
+                        data: [80, 100, 120, 130, 140, 60, 40],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#fff' : '#000'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+        // Job Detail Functions
+        function showJobDetail(jobId) {
+            // Simulate loading job details
+            const jobDetails = {
+                'job-001': {
+                    id: 'QJ-001',
+                    type: 'Quantum Circuit',
+                    status: 'Completed',
+                    submittedBy: 'john.doe@ibm.com',
+                    startTime: '2023-12-01 14:30:00',
+                    endTime: '2023-12-01 14:32:15',
+                    duration: '2m 15s',
+                    priority: 'Medium',
+                    backend: 'ibmq_quito',
+                    qubits: 5,
+                    shots: 1024,
+                    result: 'Success: 98.2% probability'
+                },
+                'job-002': {
+                    id: 'QJ-002',
+                    type: 'Quantum Algorithm',
+                    status: 'Running',
+                    submittedBy: 'jane.smith@ibm.com',
+                    startTime: '2023-12-01 15:45:00',
+                    endTime: '-',
+                    duration: '1m 30s (ongoing)',
+                    priority: 'High',
+                    backend: 'ibmq_manila',
+                    qubits: 7,
+                    shots: 2048,
+                    result: 'Processing...'
+                },
+                'job-003': {
+                    id: 'QJ-003',
+                    type: 'Quantum Simulation',
+                    status: 'Pending',
+                    submittedBy: 'alice.johnson@ibm.com',
+                    startTime: '-',
+                    endTime: '-',
+                    duration: '-',
+                    priority: 'Low',
+                    backend: 'ibmq_belem',
+                    qubits: 3,
+                    shots: 512,
+                    result: 'Waiting in queue'
+                },
+                'job-004': {
+                    id: 'QJ-004',
+                    type: 'Circuit Optimization',
+                    status: 'Failed',
+                    submittedBy: 'bob.wilson@ibm.com',
+                    startTime: '2023-12-01 13:20:00',
+                    endTime: '2023-12-01 13:20:45',
+                    duration: '0m 45s',
+                    priority: 'Medium',
+                    backend: 'ibmq_lima',
+                    qubits: 5,
+                    shots: 1024,
+                    result: 'Error: Qubit decoherence'
+                }
+            };
+
+            const job = jobDetails[jobId];
+            const content = `
+                <div class="space-y-6">
+                    <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">Basic Information</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Job ID</p>
+                                <p class="font-medium">${job.id}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Type</p>
+                                <p class="font-medium">${job.type}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                                <span class="status-badge ${job.status.toLowerCase() === 'completed' ? 'status-completed' : job.status.toLowerCase() === 'running' ? 'status-running' : job.status.toLowerCase() === 'failed' ? 'status-failed' : 'status-pending'}">${job.status}</span>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Priority</p>
+                                <span class="status-badge ${job.priority.toLowerCase() === 'high' ? 'priority-high' : job.priority.toLowerCase() === 'medium' ? 'priority-medium' : 'priority-low'}">${job.priority}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">Execution Details</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Submitted By</p>
+                                <p class="font-medium">${job.submittedBy}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Start Time</p>
+                                <p class="font-medium">${job.startTime}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">End Time</p>
+                                <p class="font-medium">${job.endTime}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Duration</p>
+                                <p class="font-medium">${job.duration}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">Quantum Specifications</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Backend</p>
+                                <p class="font-medium">${job.backend}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Qubits</p>
+                                <p class="font-medium">${job.qubits}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Shots</p>
+                                <p class="font-medium">${job.shots}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">Result</h3>
+                        <div class="p-3 bg-white dark:bg-gray-600 rounded">
+                            <p class="font-mono text-sm">${job.result}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-3">
+                        <button class="px-4 py-2 bg-quantum-600 hover:bg-quantum-700 text-white rounded-lg">
+                            <i class="fas fa-download mr-2"></i>Download Results
+                        </button>
+                        <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg">
+                            <i class="fas fa-copy mr-2"></i>Copy Job ID
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('job-detail-content').innerHTML = content;
+            document.getElementById('job-detail-panel').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideJobDetail() {
+            document.getElementById('job-detail-panel').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Simulate real-time updates
+        setInterval(() => {
+            // Random notification for demo
+            if (Math.random() > 0.7) {
+                const toast = document.getElementById('notification-toast');
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+        }, 10000);
+
+        // Close job detail when clicking outside
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('job-detail-panel');
+            if (panel.classList.contains('active') && !panel.contains(e.target) && !e.target.closest('tr')) {
+                hideJobDetail();
+            }
+        });
+
+        // Update chart colors when theme changes
+        const observer = new MutationObserver(() => {
+            statusChart.update();
+            timelineChart.update();
+        });
+
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    </script>
+</body>
+</html>
